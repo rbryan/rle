@@ -1,0 +1,4 @@
+rle
+===
+
+run length encoding?
