@@ -10,20 +10,25 @@ int get_bit();
 void error(const char *e);
 void close_output_stream();
 void close_intput_stream();
+void push_bit(int bit);
+void flush_input_buf();
+void flush_output_buf();
 
-int input_eof = 0;
 FILE *isf=NULL;
 FILE *osf=NULL;
+byte icb=0;
+byte ocb=0;
 
 int main(int argc, char**argv){
-	
-	if(argc<2) error("missing filename");
+	int a;
+	if(argc<3) error("missing filenames");
 
 	init_input_stream(argv[1]);
+	init_output_stream(argv[2]);
 
-	while(!input_eof)
-		printf("%d\n",get_bit());
-
+	while((a=get_bit())!=EOF)
+		push_bit(a);
+	flush_output_buf();
 
 	return 0;
 
@@ -34,25 +39,47 @@ void error(const char *e){
 	exit(1);
 }
 
+void flush_input_buf(){
+	icb=0;
+}
+
+void flush_output_buf(){
+	fputc(ocb,osf);
+	ocb=0;
+}
+
 int get_bit(){
-	static byte c=0;
-	static int bit=9;//starts out greater than 8 to load first byte
+	static int bit=8;//starts out at 8 to load first byte
 	
 	if(isf==NULL)
 		error("get_bit(): input stream not initialized.");
 	
 	bit++;
 
-	if(bit>8){
-		c = (char) fgetc(isf);
-		printf("%d\n",c);
-		if(c=='\0'){
-			input_eof = 1;
-			return -1;	
+	if(bit>7){
+		icb = (char) fgetc(isf);
+		if(icb==EOF){
+			return EOF;	
 		}
 		bit = 0;
 	}
-	return one_or_zero(c,bit);
+	return one_or_zero(icb,bit);
+}
+
+void push_bit(int b){
+	static int bit=0;
+	if(osf==NULL)
+		error("push_bit(): output stream not initialized.");
+
+
+	if(bit>7){
+		fputc(ocb,osf);
+		ocb=0;
+		bit=0;
+	}
+	ocb |= b<<bit;
+	bit++;
+
 }
 
 int one_or_zero(byte b,int bit){
@@ -65,7 +92,6 @@ int one_or_zero(byte b,int bit){
 
 void init_input_stream(const char* f){
 	isf = fopen(f,"r");
-	input_eof = 0;
 }
 
 void close_input_stream(){
